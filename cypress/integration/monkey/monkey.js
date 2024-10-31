@@ -2,13 +2,13 @@
 require('cypress-plugin-tab')
 var fs = require('fs')
 
-const url = Cypress.config('baseUrl') || "https://uniandes.edu.co/"
+const url = Cypress.config('baseUrl') || "https://www.google.com"
 const appName = Cypress.env('appName')|| "your app"
 const events = Cypress.env('events')|| 100
 const delay = Cypress.env('delay') || 100
 var seed = Cypress.env('seed')
 
-const pct_clicks = Cypress.env('pctClicks') || 19
+const pct_clicks = Cypress.env('pcjClicks') || 19
 const pct_scrolls = Cypress.env('pctScroll') || 17
 const pct_selectors = Cypress.env('pctSelectors') || 16
 const pct_keys = Cypress.env('pctKeys') || 16
@@ -59,7 +59,6 @@ function fullPath(el){
     return names.join(" > ");
   }
 
-
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //Start of random monkey
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -74,10 +73,10 @@ var evtIndex = 1
 var focused = false
 
 function randClick(){
-    
+
     let randX = getRandomInt(curX, viewportWidth)
     let randY = getRandomInt(curY, viewportHeight)
-    
+
     cy.window().then((win)=>{
         let info = ""
         let element = win.document.elementFromPoint(randX, randY)
@@ -283,24 +282,35 @@ function randHover(){
 }
 
 function avPag(){
-    let info = ""
-    let prev = curY.valueOf()
-    if(curPageMaxY - curY >= viewportHeight){ 
-        if(curPageMaxY - (curY + viewportHeight) >= viewportHeight){
-            curY = curY + viewportHeight
-            cy.scrollTo(curX, curY)
-        } 
-        else{
-            curY = curPageMaxY - viewportHeight
-            cy.scrollTo(curX, curY)
-            info += "Page limit reached! "
+    let info = "";
+    let prev = curY.valueOf();
+
+    cy.document().then((doc) => {
+        const maxScrollY = doc.documentElement.scrollHeight - doc.documentElement.clientHeight;
+
+        if (maxScrollY > 0 && curY < maxScrollY) {
+            if(curPageMaxY - curY >= viewportHeight) { 
+                if(curPageMaxY - (curY + viewportHeight) >= viewportHeight){
+                    curY += viewportHeight;
+                } else {
+                    curY = maxScrollY;
+                    info += "Page limit reached! ";
+                }
+
+                cy.scrollTo(curX, curY).then(() => {
+                    cy.wait(100);
+                    cy.log(`Scrolled to y=${curY}`);
+                });
+                info += `Successfully scrolled down from y=${prev} to y=${curY}`;
+            } else {
+                info = "INVALID. Not able to scroll down anymore";
+            }
+        } else {
+            info = "No scroll needed or possible; already at the bottom.";
         }
-        info += `Successfully scrolled down from y=${prev} to y=${curY}`
-    }
-    else{
-        info = "INVALID. Not able to scroll down anymore"
-    }
-    cy.task("logCommand", { funtype: "Scroll event (pg down)", info: info})
+
+        cy.task("logCommand", { funtype: "Scroll event (pg down)", info: info });
+    });
 }
 
 function rePag(){
@@ -325,46 +335,68 @@ function rePag(){
 }
 
 function horizontalScrollFw(){
-    let info = ""
-    let prev = curX.valueOf()
-    if(curPageMaxX - curX >= viewportWidth){ 
-        if(curPageMaxX - (curX + viewportWidth) >= viewportWidth){
-            curX = curX + viewportWidth
-            cy.scrollTo(curX, curY)
-        } 
-        else{
-            curX = curPageMaxX - viewportWidth
-            cy.scrollTo(curX, curY)
-            info += "Page limit reached! "
+    let info = "";
+    let prev = curX.valueOf();
+
+    cy.document().then((doc) => {
+        const hasHorizontalScroll = doc.documentElement.scrollWidth > doc.documentElement.clientWidth;
+        
+        if (!hasHorizontalScroll) {
+            info = "Horizontal scroll not available.";
+            cy.task("logCommand", { funtype: "Scroll event (horizontal fw)", info: info });
+            return;
         }
-        info += `Successfully scrolled to the right from x=${prev} to x=${curX}`
-    }
-    else{
-        info = "INVALID. Not able to scroll to the right anymore"
-    }
-    cy.task("logCommand", { funtype: "Scroll event (horizontal fw)", info: info})
+
+        if(curPageMaxX - curX >= viewportWidth){ 
+            if(curPageMaxX - (curX + viewportWidth) >= viewportWidth){
+                curX += viewportWidth;
+                cy.scrollTo(curX, curY);
+            } 
+            else {
+                curX = curPageMaxX - viewportWidth;
+                cy.scrollTo(curX, curY);
+                info += "Page limit reached! ";
+            }
+            info += `Successfully scrolled to the right from x=${prev} to x=${curX}`;
+        } else {
+            info = "INVALID. Not able to scroll to the right anymore";
+        }
+        cy.task("logCommand", { funtype: "Scroll event (horizontal fw)", info: info });
+    });
 }
 
-function horizontalScrollBk(){
-    let info = ""
-    let prev = curX.valueOf()
-    if(curX === 0){
-        info = "INVALID. Not able to scroll to the left anymore"
-    }
-    else{
-        if(viewportWidth > curX){
-            curX =  0
-            cy.scrollTo(curX, curY)
-            info += "Page limit reached! "
+
+function horizontalScrollBk() {
+    let info = "";
+    let prev = curX.valueOf();
+
+    cy.document().then((doc) => {
+        const hasHorizontalScroll = doc.documentElement.scrollWidth > doc.documentElement.clientWidth;
+
+        if (!hasHorizontalScroll) {
+            info = "Horizontal scroll not available.";
+            cy.task("logCommand", { funtype: "Scroll event (horizontal bk)", info: info });
+            return;
         }
-        else{
-            curX = curX - viewportWidth
-            cy.scrollTo(curX, curY)
+
+        if (curX === 0) {
+            info = "INVALID. Not able to scroll to the left anymore";
+        } else {
+            if (viewportWidth > curX) {
+                curX = 0;
+                cy.scrollTo(curX, curY);
+                info += "Page limit reached! ";
+            } else {
+                curX -= viewportWidth;
+                cy.scrollTo(curX, curY);
+            }
+            info += `Successfully scrolled to the left from x=${prev} to x=${curX}`;
         }
-        info += `Successfully scrolled to the left from x=${prev} to x=${curX}`
-    }
-    cy.task("logCommand", { funtype: "Scroll event (horizontal bk)", info: info})
+
+        cy.task("logCommand", { funtype: "Scroll event (horizontal bk)", info: info });
+    });
 }
+
 
 function reload(){
     cy.reload()
@@ -507,59 +539,104 @@ function randomEvent(){
     }
 }
 
+function login(username, password) {
+    cy.get('input[name="identification"]').type(username);
+    cy.get('input[name="password"]').type(password);
+    cy.get('button[type="submit"]').click();
+}
+
+const username = '';
+const password = '';
+
 var pending_events = [,,,,,] 
 
-describe( `${appName} under monkeys`, function() {
-    //Listener
-    cy.on('uncaught:exception', (err)=>{
-        cy.task('genericLog', {'message':`An exception occurred: ${err}`});
-        cy.task('genericReport', {'html': `<p><strong>Uncaught exception: </strong>${err}</p>`});
+describe(`${appName} under monkeys`, function() {
+    let errorCount = 0; 
+
+    cy.on('uncaught:exception', (err) => {
+        cy.task('genericLog', { 'message': `An exception occurred: ${err}` });
+        cy.task('genericReport', { 'html': `<p><strong>Uncaught exception: </strong>${err}</p>` });
     });
-    cy.on('window:alert', (text)=>{
-        cy.task('genericLog', {'message':`An alert was fired with the message: "${text}"`});
-        cy.task('genericReport', {'html': `<p><strong>An alert was fired with the message: </strong>${text}</p>`});
+
+    cy.on('window:alert', (text) => {
+        cy.task('genericLog', { 'message': `An alert was fired with the message: "${text}"` });
+        cy.task('genericReport', { 'html': `<p><strong>An alert was fired with the message: </strong>${text}</p>` });
     });
-    cy.on('fail', (err)=>{
-        cy.task('genericLog', {'message':`The test failed with the following error: ${err}`});
-        cy.task('genericReport', {'html': `<p><strong>Test failed with the error: </strong>${err}</p>`});
+
+    cy.on('fail', (err) => {
+        errorCount++;
+        cy.task('genericLog', { 'message': `The test failed with the following error: ${err}` });
+        cy.task('genericReport', { 'html': `<p><strong>Test failed with the error: </strong>${err}</p>` });
         return false;
     });
+
     it(`visits ${appName} and survives monkeys`, function() {
-        if(!seed) seed = getRandomInt(0, Number.MAX_SAFE_INTEGER);
+        if (!seed) seed = getRandomInt(0, Number.MAX_SAFE_INTEGER);
 
-        cy.task('logStart', {"type":"monkey", "url":url, "seed":seed})
-        cy.log(`Seed: ${seed}`)
-        cy.task('genericLog', {"message":`Seed: ${seed}`})
-        let pcg = pct_clicks+pct_scrolls+pct_keys+pct_pgnav+pct_selectors+pct_spkeys
-        if(pcg === 100){
+        cy.task('logStart', { "type": "monkey", "url": url, "seed": seed });
+        cy.log(`Seed: ${seed}`);
+        cy.task('genericLog', { "message": `Seed: ${seed}` });
 
-            pending_events[0] = events*pct_clicks/100
-            pending_events[1] = events*pct_scrolls/100
-            pending_events[2] = events*pct_selectors/100
-            pending_events[3] = events*pct_keys/100
-            pending_events[4] = events*pct_spkeys/100
-            pending_events[5] = events*pct_pgnav/100
-            
-            cy.visit(url).then((win)=>{   
-                let d = win.document
-                curPageMaxY = Math.max( d.body.scrollHeight, d.body.offsetHeight, d.documentElement.clientHeight, d.documentElement.scrollHeight, d.documentElement.offsetHeight) - win.innerHeight
-                curPageMaxX = Math.max( d.body.scrollWidth, d.body.offsetWidth, d.documentElement.clientWidth, d.documentElement.scrollWidth, d.documentElement.offsetWidth) - win.innerWidth
-            })
-            cy.wait(1000)
-            //Add an event for each type of event in order to enter the else statement of randomEvent method
-            for(let i = 0; i < events + 5; i++){
-                evtIndex++
-                randomEvent()
+
+        let pcg = pct_clicks + pct_scrolls + pct_keys + pct_pgnav + pct_selectors + pct_spkeys;
+
+        cy.log(`Porcentajes individuales: 
+            pctClicks: ${pct_clicks}, 
+            pctScroll: ${pct_scrolls}, 
+            pctSelectors: ${pct_selectors}, 
+            pctKeys: ${pct_keys}, 
+            pctSpKeys: ${pct_spkeys}, 
+            pctPgNav: ${pct_pgnav}`);
+        cy.log(`Suma de porcentajes: ${pcg}`);
+
+        cy.task('genericLog', { "message": `Porcentajes individuales: 
+            pctClicks: ${pct_clicks}, 
+            pctScroll: ${pct_scrolls}, 
+            pctSelectors: ${pct_selectors}, 
+            pctKeys: ${pct_keys}, 
+            pctSpKeys: ${pct_spkeys}, 
+            pctPgNav: ${pct_pgnav}` });
+        cy.task('genericLog', { "message": `Suma de porcentajes: ${pcg}` });
+
+        if (pcg === 100) {
+
+            pending_events[0] = events * pct_clicks / 100;
+            pending_events[1] = events * pct_scrolls / 100;
+            pending_events[2] = events * pct_selectors / 100;
+            pending_events[3] = events * pct_keys / 100;
+            pending_events[4] = events * pct_spkeys / 100;
+            pending_events[5] = events * pct_pgnav / 100;
+
+            cy.visit(url).then((win) => {
+                let d = win.document;
+                curPageMaxY = Math.max(d.body.scrollHeight, d.body.offsetHeight, d.documentElement.clientHeight, d.documentElement.scrollHeight, d.documentElement.offsetHeight) - win.innerHeight;
+                curPageMaxX = Math.max(d.body.scrollWidth, d.body.offsetWidth, d.documentElement.clientWidth, d.documentElement.scrollWidth, d.documentElement.offsetWidth) - win.innerWidth;
+            });
+
+            cy.wait(1000);
+
+            login(username, password)
+
+            cy.wait(1000);
+
+            for (let i = 0; i < events + 5; i++) {
+                evtIndex++;
+                randomEvent();
             }
+        } else {
+            cy.log(`Suma de porcentajes: ${pcg}`)
+            cy.task('logPctNo100')
         }
-        else cy.task('logPctNo100')
-       
-    }) 
-    afterEach(()=>{
-        cy.task('logEnd')
-    })
-})
+    });
 
+    afterEach(() => {
+        cy.task('logEnd');
+
+        if (errorCount > 0) {
+            cy.task('genericLog', { 'message': `Se encontraron ${errorCount} errores durante la ejecución.` });
+        }
+    });
+});
 
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 //End of random monkey

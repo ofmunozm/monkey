@@ -3,7 +3,7 @@ require('cypress-plugin-tab');
 var fs = require('fs');
 var faker = require('faker');
 
-const url = Cypress.config('baseUrl') || "https://uniandes.edu.co/";
+const url = Cypress.config('baseUrl') || "https://www.google.com";
 const appName = Cypress.env('appName')|| "your app";
 const events = Cypress.env('events')|| 100;
 const delay = Cypress.env('delay') || 100;
@@ -683,7 +683,10 @@ describe( `${appName} under smarter monkeys`, function() {
                 randomEvent()
             }
         }
-        else cy.task('logPctNo100')
+        else {
+            cy.log(`Suma de porcentajes: ${pcg}`)
+            cy.task('logPctNo100')
+        }
         
     })
     
